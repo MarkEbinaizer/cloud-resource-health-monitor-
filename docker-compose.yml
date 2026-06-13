@@ -1,0 +1,12 @@
+version: '3.8'
+
+services:
+  health-monitor:
+    build: .
+    ports:
+      - "8080:8080"  # Not actually used, but for example
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro  # Optional: to monitor Docker host
+      - /sys/fs/cgroup:/sys/fs/cgroup:ro
+    # The app outputs to console, so we can see the logs
+    restart: unless-stopped

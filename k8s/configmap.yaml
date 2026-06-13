@@ -1,0 +1,9 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: health-monitor-config
+  labels:
+    app: health-monitor
+data:
+  # Configuration can be added here
+  MONITOR_INTERVAL: "10"
