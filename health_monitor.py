@@ -8,6 +8,7 @@ Designed for Linux systems.
 import json
 import os
 import shutil
+import sys
 import time
 
 
@@ -109,22 +110,121 @@ def get_uptime():
         return f"Error reading uptime: {str(e)}"
 
 
+def format_bytes_to_human_readable(bytes_num):
+    """Convert bytes to human readable format (e.g., 1024 -> 1 KB)."""
+    if bytes_num == 0:
+        return "0 B"
+    units = ["B", "KB", "MB", "GB", "TB"]
+    i = 0
+    while bytes_num >= 1024 and i < len(units) - 1:
+        bytes_num /= 1024.0
+        i += 1
+    if i == 0:
+        return f"{int(bytes_num)} {units[i]}"
+    else:
+        return f"{bytes_num:.2f} {units[i]}"
+
+
+def format_uptime(seconds):
+    """Format uptime seconds into hours and minutes."""
+    if isinstance(seconds, str):
+        return seconds  # error message
+    hours = int(seconds // 3600)
+    minutes = int((seconds % 3600) // 60)
+    return f"{hours} hours, {minutes} minutes"
+
+
+def format_timestamp(timestamp):
+    """Format Unix timestamp to readable string."""
+    t = time.localtime(timestamp)
+    day = str(t.tm_mday)
+    month = time.strftime("%b", t)
+    year = str(t.tm_year)
+    time_str = time.strftime("%H:%M:%S", t)
+    return f"{day} {month} {year}, {time_str}"
+
+
 def main():
-    """Main function to collect and output metrics as JSON in a loop."""
+    """Main function to collect and output metrics."""
     interval = int(os.environ.get('MONITOR_INTERVAL', 10))
-    while True:
-        data = {
-            'cpu_usage_percent': get_cpu_usage(),
-            'memory_usage': get_memory_usage(),
-            'disk_usage': get_disk_usage(),
-            'uptime_seconds': get_uptime(),
-            'timestamp': time.time()
-        }
-        print(json.dumps(data))
-        # Flush to ensure output is sent immediately
-        import sys
-        sys.stdout.flush()
-        time.sleep(interval)
+
+    # Check if stdout is a terminal (for interactive formatted output)
+    if sys.stdout.isatty():
+        # Interactive mode: display formatted output
+        while True:
+            # Clear screen (ANSI escape)
+            print("\033[H\033[J", end="")
+
+            # Get metrics
+            cpu_usage = get_cpu_usage()
+            memory = get_memory_usage()
+            disk = get_disk_usage()
+            uptime_seconds = get_uptime()
+            timestamp = time.time()
+
+            # Format CPU usage (integer for display)
+            if isinstance(cpu_usage, (int, float)):
+                cpu_display = f"{int(round(cpu_usage))}%"
+            else:
+                cpu_display = cpu_usage  # error message
+
+            # Format memory usage
+            if isinstance(memory, dict) and 'error' not in memory:
+                mem_used = memory['used'] * 1024  # convert kB to bytes
+                mem_total = memory['total'] * 1024
+                mem_percent = memory['usage_percent']
+                mem_used_str = format_bytes_to_human_readable(mem_used)
+                mem_total_str = format_bytes_to_human_readable(mem_total)
+                mem_display = f"{mem_percent:.2f}%  ({mem_used_str} / {mem_total_str})"
+            else:
+                mem_display = memory.get('error', 'Unknown error') if isinstance(memory, dict) else memory
+
+            # Format disk usage
+            if isinstance(disk, dict) and 'error' not in disk:
+                disk_used = disk['used']
+                disk_total = disk['total']
+                disk_percent = disk['usage_percent']
+                disk_used_str = format_bytes_to_human_readable(disk_used)
+                disk_total_str = format_bytes_to_human_readable(disk_total)
+                disk_display = f"{disk_percent:.2f}%  ({disk_used_str} / {disk_total_str})"
+            else:
+                disk_display = disk.get('error', 'Unknown error') if isinstance(disk, dict) else disk
+
+            # Format uptime
+            uptime_display = format_uptime(uptime_seconds)
+
+            # Format timestamp
+            timestamp_display = format_timestamp(timestamp)
+
+            # Print the boxed output
+            print("╔══════════════════════════════════════╗")
+            print("║       CLOUD RESOURCE MONITOR        ║")
+            print("╚══════════════════════════════════════╝")
+            print(f"CPU Usage       :  {cpu_display:>8}")
+            print(f"Memory Usage    :  {mem_display:>8}")
+            print(f"Disk Usage      :  {disk_display:>8}")
+            print(f"Uptime          :  {uptime_display:>8}")
+            print(f"Last Updated    :  {timestamp_display:>8}")
+            print("")
+            print("Refreshes every 10 seconds. Press Ctrl+C to stop.")
+
+            # Flush to ensure output is sent immediately
+            sys.stdout.flush()
+            time.sleep(interval)
+    else:
+        # Non-interactive mode: output JSON (for Docker, logs, etc.)
+        while True:
+            data = {
+                'cpu_usage_percent': get_cpu_usage(),
+                'memory_usage': get_memory_usage(),
+                'disk_usage': get_disk_usage(),
+                'uptime_seconds': get_uptime(),
+                'timestamp': time.time()
+            }
+            print(json.dumps(data))
+            # Flush to ensure output is sent immediately
+            sys.stdout.flush()
+            time.sleep(interval)
 
 
 if __name__ == '__main__':
