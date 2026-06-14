@@ -1,192 +1,65 @@
 # Cloud Resource Health Monitor
 
-A lightweight Python application that monitors system resources (CPU, memory, disk usage, and uptime) and outputs the data as JSON. Designed for deployment in Docker and Kubernetes environments.
+A simple tool that shows your computer's CPU, memory, disk usage and uptime in an easy-to-read format.
 
-## Technologies Used
+## What This Does
 
-- **Python 3.10+** (using only built-in libraries)
-- **Docker** for containerization
-- **Kubernetes** for orchestration
-- **GitHub Actions** for CI/CD (automated Docker image builds and pushes to DockerHub)
+This app continuously monitors your system's vital signs:
+- **CPU Usage** – how hard your processor is working
+- **Memory Usage** – how much RAM is being used
+- **Disk Usage** – how much storage space is taken up
+- **Uptime** – how long your computer has been running
 
-## Features
+Instead of raw numbers, it displays everything in a clean, formatted box that refreshes every 10 seconds.
 
-- Monitors CPU usage (percentage)
-- Monitors memory usage (total, used, free, buffers, cached, and usage percentage)
-- Monitors disk usage (total, used, free, and usage percentage)
-- Reports system uptime in seconds
-- Outputs structured JSON data to stdout
-- Configurable monitoring interval via environment variable
-- No external dependencies (only Python standard library)
+## How It Looks
 
-## Architecture Diagram
+When you run the app in a terminal, you’ll see:
 
 ```
-+---------------------+
-|   Host System       |
-|  (Linux Server)     |
-+----------+----------+
-           |
-           | Host ProcFS (/proc, /sys)
-           v
-+---------------------+
-|  Health Monitor     |
-|  Container/Pod      |
-|  -----------------  |
-|  | Python App     | |
-|  | - CPU Monitor  | |
-|  | - Memory Mon.  | |
-|  | - Disk Monitor | |
-|  | - Uptime Mon.  | |
-|  -----------------  |
-+---------------------+
-           |
-           | JSON Output to stdout
-           v
-+---------------------+
-|   Logs / Monitoring |
-|   (e.g., ELK,       |
-|    Prometheus,      |
-|    Grafana)         |
-+---------------------+
+╔═══════════════════════════════════════╗
+║       CLOUD RESOURCE MONITOR        ║
+╚═══════════════════════════════════════╝
+CPU Usage       :  23%
+Memory Usage    :  7.38%  (574 MB / 7.60 GB)
+Disk Usage      :  0.16%  (1.65 GB / 1006 GB)
+Uptime          :  1 hours, 41 minutes
+Last Updated    :  14 Jun 2026, 14:09:57
+
+Refreshes every 10 seconds. Press Ctrl+C to stop.
 ```
 
-## Local Development & Testing
+## Requirements
 
-### Prerequisites
+- Docker Desktop (Windows/Mac) or Docker Engine (Linux)
+- That's it. Nothing else needed.
 
-- Docker installed
-- Git (optional)
+## How To Run
 
-### Running with Docker Compose
+**Step 1:** Install Docker Desktop from https://www.docker.com/products/docker-desktop
 
-1. Clone the repository:
-   ```bash
-   git clone <repository-url>
-   cd cloud-resource-health-monitor
-   ```
-
-2. Start the service:
-   ```bash
-   docker-compose up --build
-   ```
-
-3. View the logs:
-   ```bash
-   docker-compose logs -f
-   ```
-
-   You should see JSON output similar to:
-   ```json
-   {
-     "cpu_usage_percent": 15.2,
-     "memory_usage": {
-       "total": 8037024,
-       "used": 3421184,
-       "free": 4615840,
-       "buffers": 212992,
-       "cached": 1370112,
-       "usage_percent": 42.6
-     },
-     "disk_usage": {
-       "total": 1000000000,
-       "used": 500000000,
-       "free": 500000000,
-       "usage_percent": 50.0
-     },
-     "uptime_seconds": 12345.67,
-     "timestamp": 1623456789.123
-   }
-   ```
-
-### Running with Docker directly
-
-```bash
-# Build the image
-docker build -t health-monitor .
-
-# Run the container
-docker run --rm \
-  --volume /proc:/host/proc:ro \
-  --volume /sys:/host/sys:ro \
-  --env MONITOR_INTERVAL=5 \
-  health-monitor
+**Step 2:** Clone this repo
+```
+git clone https://github.com/MarkEbinaizer/cloud-resource-health-monitor-
+cd cloud-resource-health-monitor-
 ```
 
-## Kubernetes Deployment
-
-### Prerequisites
-
-- Kubernetes cluster (e.g., minikube, EKS, GKE)
-- `kubectl` configured to connect to your cluster
-- Docker image pushed to a registry (see CI/CD section below)
-
-### Steps
-
-1. Build and push your Docker image to a registry (e.g., DockerHub):
-   ```bash
-   # Replace with your DockerHub username
-   docker build -t <your-username>/health-monitor:latest .
-   docker push <your-username>/health-monitor:latest
-   ```
-
-2. Update the image in `k8s/deployment.yaml`:
-   ```yaml
-   image: <your-username>/health-monitor:latest
-   ```
-
-3. Apply the Kubernetes manifests:
-   ```bash
-   kubectl apply -f k8s/configmap.yaml
-   kubectl apply -f k8s/deployment.yaml
-   kubectl apply -f k8s/service.yaml
-   ```
-
-4. Verify the deployment:
-   ```bash
-   kubectl get pods
-   kubectl logs -f <pod-name>
-   ```
-
-5. (Optional) Expose the service externally if needed (though the app outputs to logs, not a network port):
-   ```bash
-   kubectl expose deployment health-monitor-deployment --type=LoadBalancer --port=8080
-   ```
-
-## CI/CD Pipeline
-
-This project includes a GitHub Actions workflow (`.github/workflows/docker-build.yml`) that automatically:
-
-1. Triggers on every push to the `main` branch
-2. Builds the Docker image
-3. Pushes the image to DockerHub
-
-### Setup
-
-To enable the workflow, you need to add the following secrets to your GitHub repository:
-
-- `DOCKERHUB_USERNAME`: Your DockerHub username
-- `DOCKERHUB_TOKEN`: Your DockerHub personal access token (with write:packages scope)
-
-## Configuration
-
-The monitoring interval can be configured via the `MONITOR_INTERVAL` environment variable (in seconds). Default is 10 seconds.
-
-In Docker:
-```bash
-docker run -e MONITOR_INTERVAL=5 health-monitor
+**Step 3:** Run the app
+```
+docker run -it --rm markEbinaizer/cloud-health-monitor:latest
+```
+OR build locally:
+```
+docker-compose up --build
 ```
 
-In Kubernetes, the interval is set via the ConfigMap (`k8s/configmap.yaml`).
+## Tech Stack
 
-## Notes
+- Python (built-in libraries only)
+- Docker
+- Kubernetes
+- GitHub Actions (CI/CD)
 
-- This application is designed for Linux systems as it relies on `/proc` and `/sys` filesystems.
-- For Windows or macOS, additional platform-specific code would be required.
-- The Docker container requires access to the host's `/proc` and `/sys` directories to read system metrics accurately.
+## About This Project
 
-## License
-
-This project is open source and available under the MIT License.
-
-*/
+Built as part of my cloud computing and DevOps learning journey. This project demonstrates containerization with Docker, orchestration with Kubernetes, and CI/CD automation with GitHub Actions.
